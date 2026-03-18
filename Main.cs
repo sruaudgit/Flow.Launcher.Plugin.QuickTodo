@@ -51,8 +51,11 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
 
     public List<Result> LoadContextMenus(Result selectedResult)
     {
-        if (selectedResult.ContextData is not TodoItem task)
+        if (selectedResult.ContextData is not TodoItem contextTask)
             return new List<Result>();
+
+        // Re-fetch from store to get fresh state
+        var task = _store.GetById(contextTask.Id) ?? contextTask;
 
         var results = new List<Result>();
 

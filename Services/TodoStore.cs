@@ -54,6 +54,8 @@ public class TodoStore
         }
     }
 
+    public string FilePath => _filePath;
+
     private void Save()
     {
         // Caller must hold _lock
@@ -64,8 +66,15 @@ public class TodoStore
         }
         catch { /* best-effort backup */ }
 
-        var json = JsonSerializer.Serialize(_data, JsonOptions);
-        File.WriteAllText(_filePath, json);
+        try
+        {
+            var json = JsonSerializer.Serialize(_data, JsonOptions);
+            File.WriteAllText(_filePath, json);
+        }
+        catch (Exception ex)
+        {
+            _logWarn?.Invoke(nameof(TodoStore), $"Failed to save {_filePath}: {ex.Message}");
+        }
     }
 
     // --- CRUD ---

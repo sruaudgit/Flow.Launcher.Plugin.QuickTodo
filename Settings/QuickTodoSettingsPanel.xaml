@@ -15,6 +15,11 @@
                   IsChecked="{Binding NotificationSoundEnabled}"
                   Margin="0,0,0,16"/>
 
+        <TextBlock Text="Data Location" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBox Text="{Binding DataFilePath, Mode=OneWay}" IsReadOnly="True"
+                 Background="Transparent" BorderThickness="0" Margin="0,0,0,16"
+                 Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+
         <TextBlock Text="Categories" FontWeight="SemiBold" Margin="0,0,0,4"/>
         <ListBox ItemsSource="{Binding Categories}" Height="120" Margin="0,0,0,8"
                  x:Name="CategoryList"/>

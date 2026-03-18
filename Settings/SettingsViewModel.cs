@@ -16,7 +16,10 @@ public class SettingsViewModel : INotifyPropertyChanged
         _settings = settings;
         _store = store;
         Categories = new ObservableCollection<string>(_store.GetCategories());
+        DataFilePath = store.FilePath;
     }
+
+    public string DataFilePath { get; }
 
     public int ReminderIntervalMinutes
     {
