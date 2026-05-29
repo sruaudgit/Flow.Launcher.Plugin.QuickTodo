@@ -9,6 +9,8 @@ QuickTodo is a Flow Launcher plugin for creating and reviewing lightweight tasks
 - `td list` lists local tasks.
 - `td outlook <task> !low @Work #tomorrow` creates a real Outlook task through desktop Outlook's COM object model.
 - `td outlook list` lists incomplete Outlook tasks. Press Enter on a result to mark it complete.
+- `tdo <task> !low @Work #tomorrow` is a shortcut for `td outlook <task>` — the `tdo` keyword goes straight to Outlook mode.
+- `tdo list` lists incomplete Outlook tasks (same as `td outlook list`).
 - `td cat add <name>` adds a local category.
 - `td cat remove <name>` removes an unused local category.
 
@@ -16,6 +18,8 @@ QuickTodo is a Flow Launcher plugin for creating and reviewing lightweight tasks
 
 - Priorities: `!low`, `!medium`, `!high` or `!l`, `!m`, `!h`.
 - Dates: `#today`, `#tomorrow`, `#monday`, `#yyyy-MM-dd`, or `#MM-dd`.
+- Times: append `@<time>` to a date, e.g. `#tomorrow@1430`, `#friday@9am`, `#today@17:00`. Accepts `HHmm`, `H:mm`, and `h[:mm]am/pm`. A timed task only counts as overdue once its time passes, and its reminder fires at that time.
+- Recurrence (local tasks only): `#daily`, `#weekly`, `#monthly`, `#yearly`, or `#every-monday` … `#every-sunday`. Completing a recurring task rolls its due date forward to the next occurrence instead of marking it done. Combine with a time, e.g. `#daily@9am`.
 - Categories: `@Work`, `@Personal`, `@Errands`, or custom local categories.
 
 ## Outlook support

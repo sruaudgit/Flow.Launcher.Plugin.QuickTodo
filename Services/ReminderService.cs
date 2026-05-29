@@ -39,9 +39,7 @@ public class ReminderService : IDisposable
     {
         try
         {
-            var overdue = _store.GetOverdue();
-            var dueToday = _store.GetDueToday();
-            var tasks = overdue.Concat(dueToday).ToList();
+            var tasks = _store.GetDueReminders();
 
             if (tasks.Count == 0) return;
 
@@ -69,10 +67,13 @@ public class ReminderService : IDisposable
 
     private void ShowTaskToast(TodoItem task)
     {
-        var isOverdue = task.DueDate.HasValue && task.DueDate.Value.Date < DateTime.Now.Date;
+        var now = DateTime.Now;
+        var due = task.DueDate!.Value;
+        var isOverdue = task.HasDueTime ? due < now : due.Date < now.Date;
+        var fmt = task.HasDueTime ? "yyyy-MM-dd HH:mm" : "yyyy-MM-dd";
         var subtitle = isOverdue
-            ? $"Overdue since {task.DueDate!.Value:yyyy-MM-dd}"
-            : "Due today";
+            ? $"Overdue since {due.ToString(fmt)}"
+            : task.HasDueTime ? $"Due today at {due:HH:mm}" : "Due today";
 
         var builder = new ToastContentBuilder()
             .AddText($"QuickTodo: {task.Title}", hintMaxLines: 1)

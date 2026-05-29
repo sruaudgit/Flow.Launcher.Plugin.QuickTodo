@@ -23,6 +23,8 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
     {
         _context = context;
 
+        RegisterOutlookActionKeyword(context);
+
         _settings = context.API.LoadSettingJsonStorage<QuickTodoSettings>();
 
         _store = new TodoStore(
@@ -48,6 +50,20 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
         _settingsViewModel = new SettingsViewModel(_settings, _store);
 
         return Task.CompletedTask;
+    }
+
+    // Registers the dedicated "tdo" keyword so it goes straight to Outlook mode,
+    // alongside the default "td" keyword from plugin.json. Idempotent across restarts,
+    // and skips registration if another plugin already owns the keyword.
+    private static void RegisterOutlookActionKeyword(PluginInitContext context)
+    {
+        var meta = context.CurrentPluginMetadata;
+        if (meta.ActionKeywords.Contains(QueryHandler.OutlookActionKeyword))
+            return;
+        if (context.API.ActionKeywordAssigned(QueryHandler.OutlookActionKeyword))
+            return;
+
+        context.API.AddActionKeyword(meta.ID, QueryHandler.OutlookActionKeyword);
     }
 
     public Task<List<Result>> QueryAsync(Query query, CancellationToken token)

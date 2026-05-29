@@ -89,7 +89,8 @@ public class TodoStore
         lock (_lock) return _data.Tasks.FirstOrDefault(t => t.Id == id);
     }
 
-    public TodoItem Add(string title, Priority priority, string category, DateTime? dueDate)
+    public TodoItem Add(string title, Priority priority, string category, DateTime? dueDate,
+        Recurrence recurrence = Recurrence.None, bool hasDueTime = false)
     {
         lock (_lock)
         {
@@ -98,7 +99,9 @@ public class TodoStore
                 Title = title,
                 Priority = priority,
                 Category = category,
-                DueDate = dueDate
+                DueDate = dueDate,
+                Recurrence = recurrence,
+                HasDueTime = hasDueTime
             };
             _data.Tasks.Add(item);
             Save();
@@ -134,10 +137,44 @@ public class TodoStore
         {
             var item = _data.Tasks.FirstOrDefault(t => t.Id == id);
             if (item == null) return;
+
+            // Recurring tasks roll forward to the next occurrence instead of completing.
+            if (!item.IsCompleted && item.Recurrence != Recurrence.None && item.DueDate.HasValue)
+            {
+                item.DueDate = NextOccurrence(item.DueDate.Value, item.Recurrence);
+                item.SnoozedUntil = null;
+                Save();
+                return;
+            }
+
             item.IsCompleted = !item.IsCompleted;
             item.CompletedAt = item.IsCompleted ? DateTime.Now : null;
             Save();
         }
+    }
+
+    /// <summary>
+    /// Advances <paramref name="from"/> by one recurrence step, skipping past any
+    /// occurrences that are still in the past so the next due moment is in the future.
+    /// Preserves the time-of-day component.
+    /// </summary>
+    private static DateTime NextOccurrence(DateTime from, Recurrence recurrence)
+    {
+        var next = from;
+        var guard = 0;
+        do
+        {
+            next = recurrence switch
+            {
+                Recurrence.Daily => next.AddDays(1),
+                Recurrence.Weekly => next.AddDays(7),
+                Recurrence.Monthly => next.AddMonths(1),
+                Recurrence.Yearly => next.AddYears(1),
+                _ => next.AddDays(1)
+            };
+        }
+        while (next < DateTime.Now && ++guard < 1000);
+        return next;
     }
 
     public void SetPriority(Guid id, Priority priority)
@@ -162,13 +199,25 @@ public class TodoStore
         }
     }
 
-    public void SetDueDate(Guid id, DateTime? dueDate)
+    public void SetDueDate(Guid id, DateTime? dueDate, bool hasDueTime = false)
     {
         lock (_lock)
         {
             var item = _data.Tasks.FirstOrDefault(t => t.Id == id);
             if (item == null) return;
             item.DueDate = dueDate;
+            item.HasDueTime = dueDate.HasValue && hasDueTime;
+            Save();
+        }
+    }
+
+    public void SetRecurrence(Guid id, Recurrence recurrence)
+    {
+        lock (_lock)
+        {
+            var item = _data.Tasks.FirstOrDefault(t => t.Id == id);
+            if (item == null) return;
+            item.Recurrence = recurrence;
             Save();
         }
     }
@@ -226,8 +275,8 @@ public class TodoStore
             return _data.Tasks
                 .Where(t => !t.IsCompleted
                     && t.DueDate.HasValue
-                    && t.DueDate.Value.Date < now.Date
-                    && (!t.SnoozedUntil.HasValue || t.SnoozedUntil.Value < now))
+                    && DueMomentPast(t, now)
+                    && NotSnoozed(t, now))
                 .ToList();
         }
     }
@@ -236,11 +285,41 @@ public class TodoStore
     {
         lock (_lock)
         {
+            var now = DateTime.Now;
             return _data.Tasks
                 .Where(t => !t.IsCompleted
                     && t.DueDate.HasValue
-                    && t.DueDate.Value.Date == DateTime.Now.Date)
+                    && t.DueDate.Value.Date == now.Date
+                    && !DueMomentPast(t, now))
                 .ToList();
         }
     }
+
+    /// <summary>
+    /// Tasks whose reminder should fire now: anything past its due moment, plus
+    /// date-only tasks due today (which fire throughout the day). Timed tasks due
+    /// later today are excluded until their time arrives.
+    /// </summary>
+    public List<TodoItem> GetDueReminders()
+    {
+        lock (_lock)
+        {
+            var now = DateTime.Now;
+            return _data.Tasks
+                .Where(t => !t.IsCompleted
+                    && t.DueDate.HasValue
+                    && NotSnoozed(t, now)
+                    && (DueMomentPast(t, now)
+                        || (!t.HasDueTime && t.DueDate!.Value.Date == now.Date)))
+                .ToList();
+        }
+    }
+
+    // A timed task's due moment is its exact DateTime; a date-only task is "due"
+    // for its whole day and only becomes past once the day has rolled over.
+    private static bool DueMomentPast(TodoItem t, DateTime now)
+        => t.HasDueTime ? t.DueDate!.Value < now : t.DueDate!.Value.Date < now.Date;
+
+    private static bool NotSnoozed(TodoItem t, DateTime now)
+        => !t.SnoozedUntil.HasValue || t.SnoozedUntil.Value < now;
 }
