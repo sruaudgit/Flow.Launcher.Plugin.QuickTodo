@@ -177,6 +177,18 @@ public class TodoStore
         return next;
     }
 
+    public void SetTitle(Guid id, string title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return;
+        lock (_lock)
+        {
+            var item = _data.Tasks.FirstOrDefault(t => t.Id == id);
+            if (item == null) return;
+            item.Title = title.Trim();
+            Save();
+        }
+    }
+
     public void SetPriority(Guid id, Priority priority)
     {
         lock (_lock)

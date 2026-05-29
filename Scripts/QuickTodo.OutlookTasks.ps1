@@ -12,6 +12,8 @@ param(
     [string] $Importance = 'Normal',
 
     [string[]] $Categories,
+    [ValidateSet('None', 'Daily', 'Weekly', 'Monthly', 'Yearly')]
+    [string] $Recurrence = 'None',
     [string] $EntryId,
     [string] $StoreId,
     [switch] $IncludeCompleted,
@@ -69,6 +71,43 @@ function ConvertFrom-OutlookImportance {
         2 { return 'High' }
         default { return 'Normal' }
     }
+}
+
+function ConvertTo-OutlookRecurrenceType {
+    param(
+        [ValidateSet('None', 'Daily', 'Weekly', 'Monthly', 'Yearly')]
+        [string] $Recurrence = 'None'
+    )
+
+    # olRecurrenceType: Daily=0, Weekly=1, Monthly=2, Yearly=5
+    switch ($Recurrence) {
+        'Daily' { return 0 }
+        'Weekly' { return 1 }
+        'Monthly' { return 2 }
+        'Yearly' { return 5 }
+        default { return $null }
+    }
+}
+
+function Set-OutlookTaskRecurrence {
+    param(
+        [Parameter(Mandatory = $true)] [object] $Task,
+        [Parameter(Mandatory = $true)] [int] $RecurrenceType,
+        [Parameter(Mandatory = $true)] [datetime] $StartDate
+    )
+
+    $pattern = $Task.GetRecurrencePattern()
+    $pattern.RecurrenceType = $RecurrenceType
+    $pattern.Interval = 1
+
+    # Weekly (1) needs a day-of-week mask. olDaysOfWeek is a bit flag where
+    # Sunday=1, Monday=2, ... Saturday=64, i.e. 2^(.NET DayOfWeek index).
+    if ($RecurrenceType -eq 1) {
+        $pattern.DayOfWeekMask = [int][Math]::Pow(2, [int] $StartDate.DayOfWeek)
+    }
+
+    $pattern.PatternStartDate = $StartDate.Date
+    $Task.Save()
 }
 
 function ConvertTo-OutlookCategoryString {
@@ -133,7 +172,8 @@ function New-OutlookTask {
         [AllowNull()] [object] $DueDate = $null,
         [AllowNull()] [string] $Body = $null,
         [ValidateSet('Low', 'Normal', 'Medium', 'High')] [string] $Importance = 'Normal',
-        [AllowNull()] [string[]] $Categories = $null
+        [AllowNull()] [string[]] $Categories = $null,
+        [ValidateSet('None', 'Daily', 'Weekly', 'Monthly', 'Yearly')] [string] $Recurrence = 'None'
     )
 
     if ([string]::IsNullOrWhiteSpace($Subject)) {
@@ -159,6 +199,20 @@ function New-OutlookTask {
     }
 
     $task.Save()
+
+    # Apply recurrence after the initial save. Best-effort: if Outlook rejects the
+    # pattern, the task is still created as a one-off rather than failing the add.
+    $recurrenceType = ConvertTo-OutlookRecurrenceType -Recurrence $Recurrence
+    if ($null -ne $recurrenceType) {
+        try {
+            $startDate = if ($null -ne $DueDate) { [datetime] $DueDate } else { Get-Date }
+            Set-OutlookTaskRecurrence -Task $task -RecurrenceType $recurrenceType -StartDate $startDate
+        }
+        catch {
+            Write-Error "Recurrence not applied: $($_.Exception.Message)" -ErrorAction Continue
+        }
+    }
+
     return ConvertFrom-OutlookTaskItem -Task $task
 }
 
@@ -269,6 +323,8 @@ function Invoke-QuickTodoOutlookTaskCommand {
         [ValidateSet('Low', 'Normal', 'Medium', 'High')]
         [string] $Importance = 'Normal',
         [string[]] $Categories,
+        [ValidateSet('None', 'Daily', 'Weekly', 'Monthly', 'Yearly')]
+        [string] $Recurrence = 'None',
         [string] $EntryId,
         [string] $StoreId,
         [switch] $IncludeCompleted,
@@ -294,6 +350,9 @@ function Invoke-QuickTodoOutlookTaskCommand {
             }
             if ($PSBoundParameters.ContainsKey('Categories')) {
                 $addParams.Categories = $Categories
+            }
+            if ($PSBoundParameters.ContainsKey('Recurrence')) {
+                $addParams.Recurrence = $Recurrence
             }
 
             Write-QuickTodoOutput -Value (New-OutlookTask @addParams) -AsJson:$AsJson

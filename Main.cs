@@ -76,8 +76,10 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
         if (selectedResult.ContextData is not TodoItem contextTask)
             return new List<Result>();
 
-        // Re-fetch from store to get fresh state
-        var task = _store.GetById(contextTask.Id) ?? contextTask;
+        // Re-fetch from store to get fresh state. A null local lookup means this is
+        // an Outlook-backed task (not in the local store), so local-only actions are gated.
+        var localTask = _store.GetById(contextTask.Id);
+        var task = localTask ?? contextTask;
 
         var results = new List<Result>();
 
@@ -140,6 +142,22 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
                 return false;
             }
         });
+
+        // Edit (title + all modifiers) — local tasks only
+        if (localTask != null)
+        {
+            results.Add(new Result
+            {
+                Title = "Edit Task",
+                SubTitle = "Change title, priority, category, due date, or recurrence",
+                IcoPath = "Images\\todo.png",
+                Action = _ =>
+                {
+                    _context.API.ChangeQuery($"td edit {task.Id} {task.Title}");
+                    return false;
+                }
+            });
+        }
 
         // Delete
         results.Add(new Result

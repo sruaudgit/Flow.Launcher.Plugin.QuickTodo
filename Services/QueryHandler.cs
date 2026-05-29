@@ -60,6 +60,7 @@ public class QueryHandler
         {
             "list" => BuildListResults(query.SecondToEndSearch),
             "cat" => BuildCategoryResults(query.SecondToEndSearch),
+            "edit" => BuildEditResults(query.SecondToEndSearch),
             "outlook" => BuildOutlookResults(query.SecondToEndSearch, "td outlook"),
             _ => BuildAddResults(search)
         };
@@ -323,6 +324,130 @@ public class QueryHandler
         return results;
     }
 
+    // --- EDIT MODE ---
+
+    private List<Result> BuildEditResults(string args)
+    {
+        var input = args.Trim();
+        var firstToken = input.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+
+        // Save mode: "edit <id> <new title + modifiers>" targets a specific task.
+        if (Guid.TryParse(firstToken, out var id) && _store.GetById(id) is { } target)
+        {
+            var rest = input.Length > firstToken.Length ? input[firstToken.Length..].Trim() : "";
+            return BuildEditSaveResults(target, rest);
+        }
+
+        // List mode: pick a task to edit.
+        return BuildEditListResults(input);
+    }
+
+    private List<Result> BuildEditListResults(string filter)
+    {
+        var tasks = _store.GetAll()
+            .Where(t => string.IsNullOrEmpty(filter)
+                        || t.Title.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(t => t.IsCompleted)
+            .ThenByDescending(t => t.Priority)
+            .Take(15)
+            .ToList();
+
+        if (tasks.Count == 0)
+        {
+            return new List<Result>
+            {
+                new()
+                {
+                    Title = "No tasks to edit",
+                    SubTitle = string.IsNullOrEmpty(filter)
+                        ? "Add tasks with 'td <task>'"
+                        : $"No matches for '{filter}'",
+                    IcoPath = "Images\\todo.png"
+                }
+            };
+        }
+
+        var results = new List<Result>();
+        var score = 1000;
+        foreach (var task in tasks)
+        {
+            results.Add(new Result
+            {
+                Title = $"Edit: {task.Title}",
+                SubTitle = $"{FormatSubTitle(task)} | Enter to change title/modifiers",
+                IcoPath = PriorityIcon(task.Priority),
+                Score = score--,
+                AutoCompleteText = $"td edit {task.Id} {task.Title}",
+                Action = _ =>
+                {
+                    _context.API.ChangeQuery($"td edit {task.Id} {task.Title}");
+                    return false;
+                }
+            });
+        }
+
+        return results;
+    }
+
+    private List<Result> BuildEditSaveResults(TodoItem target, string rest)
+    {
+        if (string.IsNullOrWhiteSpace(rest))
+        {
+            return new List<Result>
+            {
+                new()
+                {
+                    Title = "Type the new title and modifiers",
+                    SubTitle = $"Editing: {target.Title}",
+                    IcoPath = "Images\\todo.png",
+                    Score = 5000,
+                    Action = _ => false
+                }
+            };
+        }
+
+        var parsed = ParseModifiers(rest);
+        var newTitle = string.IsNullOrWhiteSpace(parsed.Title) ? target.Title : parsed.Title;
+
+        // Only override fields the user actually typed; otherwise keep the task's
+        // current values (ParseModifiers fills unspecified fields with defaults).
+        var priority = PriorityRegex.IsMatch(rest) ? parsed.Priority : target.Priority;
+        var category = CategoryRegex.IsMatch(rest) ? parsed.Category : target.Category;
+        var dateGiven = DateRegex.IsMatch(rest);
+        var dueDate = dateGiven ? parsed.DueDate : target.DueDate;
+        var hasDueTime = dateGiven ? parsed.HasDueTime : target.HasDueTime;
+        var recurrence = dateGiven ? parsed.Recurrence : target.Recurrence;
+
+        var subParts = new List<string> { priority.ToString(), category };
+        if (recurrence != Recurrence.None)
+            subParts.Add(RecurrenceLabel(recurrence));
+        if (dueDate.HasValue)
+            subParts.Add($"Due: {FormatDuePreview(dueDate.Value, hasDueTime)}");
+        if (parsed.CategoryWarning != null && CategoryRegex.IsMatch(rest))
+            subParts.Add(parsed.CategoryWarning);
+
+        return new List<Result>
+        {
+            new()
+            {
+                Title = $"Save: {newTitle}",
+                SubTitle = string.Join(" | ", subParts),
+                IcoPath = PriorityIcon(priority),
+                Score = 5000,
+                Action = _ =>
+                {
+                    _store.SetTitle(target.Id, newTitle);
+                    _store.SetPriority(target.Id, priority);
+                    _store.SetCategory(target.Id, category);
+                    _store.SetDueDate(target.Id, dueDate, hasDueTime);
+                    _store.SetRecurrence(target.Id, recurrence);
+                    _context.API.ShowMsg("QuickTodo", $"Updated: {newTitle}");
+                    return true;
+                }
+            }
+        };
+    }
+
     // --- OUTLOOK MODE ---
 
     private List<Result> BuildOutlookResults(string args, string prefix)
@@ -386,8 +511,10 @@ public class QueryHandler
     {
         var parsed = ParseModifiers(input, validateCategory: false);
         var subParts = new List<string> { parsed.Priority.ToString(), parsed.Category };
+        if (parsed.Recurrence != Recurrence.None)
+            subParts.Add(RecurrenceLabel(parsed.Recurrence));
         if (parsed.DueDate.HasValue)
-            subParts.Add($"Due: {FormatDuePreview(parsed.DueDate.Value, parsed.HasDueTime)}");
+            subParts.Add($"Due: {parsed.DueDate.Value:yyyy-MM-dd}"); // Outlook tasks store date only
 
         return new List<Result>
         {
@@ -401,7 +528,8 @@ public class QueryHandler
                 {
                     try
                     {
-                        _outlookTasks!.Add(parsed.Title, parsed.Priority, parsed.Category, parsed.DueDate);
+                        _outlookTasks!.Add(parsed.Title, parsed.Priority, parsed.Category,
+                            parsed.DueDate, parsed.Recurrence);
                         _context.API.ShowMsg("QuickTodo Outlook", $"Added: {parsed.Title}");
                     }
                     catch (Exception ex)

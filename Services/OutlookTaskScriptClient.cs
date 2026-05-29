@@ -25,7 +25,8 @@ public class OutlookTaskScriptClient
         _logWarn = logWarn;
     }
 
-    public TodoItem Add(string title, Priority priority, string category, DateTime? dueDate)
+    public TodoItem Add(string title, Priority priority, string category, DateTime? dueDate,
+        Recurrence recurrence = Recurrence.None)
     {
         var args = NewBaseArguments("add");
         args.AddRange(new[] { "-Subject", title, "-Importance", ToOutlookImportance(priority), "-Categories", category });
@@ -34,6 +35,12 @@ public class OutlookTaskScriptClient
         {
             args.Add("-DueDate");
             args.Add(dueDate.Value.ToString("yyyy-MM-dd"));
+        }
+
+        if (recurrence != Recurrence.None)
+        {
+            args.Add("-Recurrence");
+            args.Add(recurrence.ToString());
         }
 
         var output = Run(args);
