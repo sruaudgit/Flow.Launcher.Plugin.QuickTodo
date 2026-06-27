@@ -79,7 +79,8 @@ public class ReminderService : IDisposable
             .AddText($"QuickTodo: {task.Title}", hintMaxLines: 1)
             .AddText(subtitle)
             .AddButton("Snooze", ToastActivationType.Background, $"quicktodo:snooze:{task.Id}")
-            .AddButton("Dismiss", ToastActivationType.Background, $"quicktodo:dismiss:{task.Id}");
+            .AddButton("Dismiss", ToastActivationType.Background, $"quicktodo:dismiss:{task.Id}")
+            .SetToastScenario(ToastScenario.Reminder);
 
         if (!_getSoundEnabled())
             builder.AddAudio(null, null, true);
