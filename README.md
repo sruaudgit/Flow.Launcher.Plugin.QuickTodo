@@ -1,3 +1,11 @@
+# This fork adds the following enhancements:
+ - toaster for the reminders are on top of the screen and can't be dismissed except if the user clicks Snooze or Complete. Before, the toaster was automatically moved after a delay to the notification center of windows and can be missed.
+ - wake up for "reminder checks" allowed to go down to 1 minute (instead of 5) in settings. Internally the plugin checks every x minutes if a reminder is overdue.  
+ - Default value is now 1 minute (instead of 60 minutes) since the plugin now takes care if a reminder is already shown 
+ - #today is default when a time is given => #@1000 is the same as #today@1000 
+
+
+
 # QuickTodo for Flow Launcher
 
 QuickTodo is a Flow Launcher plugin for creating and reviewing lightweight tasks with priorities, categories, due dates, reminders, and optional Outlook Tasks support.

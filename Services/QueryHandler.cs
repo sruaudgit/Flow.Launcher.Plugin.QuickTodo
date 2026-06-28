@@ -897,7 +897,7 @@ public class QueryHandler
     {
         var lower = token.ToLowerInvariant();
 
-        if (lower == "today") return DateTime.Today;
+        if (string.IsNullOrEmpty(lower) || lower == "today") return DateTime.Today;
         if (lower == "tomorrow") return DateTime.Today.AddDays(1);
 
         if (Enum.TryParse<DayOfWeek>(token, ignoreCase: true, out var dow))

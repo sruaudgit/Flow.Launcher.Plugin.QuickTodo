@@ -17,7 +17,7 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
     private ReminderService _reminderService = null!;
     private QuickTodoSettings _settings = null!;
     private SettingsViewModel _settingsViewModel = null!;
-    private OnActivated? _toastHandler;
+    //private OnActivated? _toastHandler;
 
     public Task InitAsync(PluginInitContext context)
     {
@@ -45,8 +45,8 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
             () => _settings.NotificationSoundEnabled);
         _reminderService.Start();
 
-        _toastHandler = args => _reminderService.HandleToastAction(args.Argument);
-        ToastNotificationManagerCompat.OnActivated += _toastHandler;
+        //_toastHandler = args => _reminderService.HandleToastAction(args.Argument);
+        //ToastNotificationManagerCompat.OnActivated += _toastHandler;
 
         _settingsViewModel = new SettingsViewModel(_settings, _store);
 
@@ -185,7 +185,7 @@ public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IDisposable
     public void Dispose()
     {
         _reminderService?.Dispose();
-        if (_toastHandler != null)
-            ToastNotificationManagerCompat.OnActivated -= _toastHandler;
+ //       if (_toastHandler != null)
+ //           ToastNotificationManagerCompat.OnActivated -= _toastHandler;
     }
 }

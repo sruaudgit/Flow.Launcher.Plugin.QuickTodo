@@ -26,7 +26,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         get => _settings.ReminderIntervalMinutes;
         set
         {
-            if (value >= 5)
+            if (value >= 1)
             {
                 _settings.ReminderIntervalMinutes = value;
                 OnPropertyChanged();
