@@ -29,8 +29,10 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path .\artifacts\QuickTodo\* -DestinationPath .\Flow.Launcher.Plugin.QuickTodo.zip -Force
 
-      - name: Create release
+      - name: Create or update release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" .\Flow.Launcher.Plugin.QuickTodo.zip --title "${{ github.ref_name }}" --generate-notes
+        run: |
+          # Try to create the release, if it exists, just upload the asset
+          gh release create "${{ github.ref_name }}" .\Flow.Launcher.Plugin.QuickTodo.zip --title "${{ github.ref_name }}" --generate-notes 2>/dev/null || gh release upload "${{ github.ref_name }}" .\Flow.Launcher.Plugin.QuickTodo.zip --clobber
