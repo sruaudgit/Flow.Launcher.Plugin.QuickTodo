@@ -119,8 +119,8 @@ public class ReminderService : IDisposable
             tn.Group = "QuickTodo";
             tn.Dismissed += (s, e) =>
             {
-                if (e.Reason == ToastDismissalReason.TimedOut || e.Reason == ToastDismissalReason.UserCanceled)
-                    ShowTaskToast(task);
+                if (e.Reason == ToastDismissalReason.TimedOut || e.Reason == ToastDismissalReason.UserCanceled) 
+                    _notifiedTaskIds.Remove(task.Id);
             };
             tn.Activated += (s, e) =>
             {

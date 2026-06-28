@@ -1,9 +1,9 @@
 # This fork adds the following enhancements:
- - toaster for the reminders are on top of the screen and can't be dismissed except if the user clicks Snooze or Complete. Before, the toaster was automatically moved after a delay to the notification center of windows and can be missed.
- - wake up for "reminder checks" allowed to go down to 1 minute (instead of 5) in settings. Internally the plugin checks every x minutes if a reminder is overdue.  
- - Default value is now 1 minute (instead of 60 minutes) since the plugin now takes care if a reminder is already shown 
+ - toaster for the reminders are on top of the screen and can't be dismissed except if the user clicks Snooze or Complete. Before, the toaster was automatically moved after a delay to the notification center of windows and could be missed.
+ - "Reminder Interval" parameter is now allowed to go down to 1 minute (instead of 5) in settings. Internally the plugin checks every x minutes if a reminder is overdue to display the corresponding toaster.  
+ - "Reminder Interval" default value is now 1 minute (instead of 60 minutes) since the plugin now takes care if a reminder is already shown 
  - #today is default when a time is given => #@1000 is the same as #today@1000 
-
+ - if user closes the reminder or open the notification center, the reminder on top of the screen will disappear temporarily, it will be shown the next "Reminder Interval" minutes. This gives the time to get access to the elements under the reminder.
 
 
 # QuickTodo for Flow Launcher
